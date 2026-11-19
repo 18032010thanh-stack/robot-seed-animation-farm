@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: ${{ inputs.publish && 'write' || 'read' }}
+      contents: write
     steps:
       - uses: actions/checkout@v6
       - name: Download all 18 MP4 segments
