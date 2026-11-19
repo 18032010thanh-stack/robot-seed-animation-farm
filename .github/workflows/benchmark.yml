@@ -1,0 +1,115 @@
+name: Blender limits benchmark (manual, guarded)
+on:
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: 'Resolution and FPS (test probe before render)'
+        type: choice
+        options:
+          - 480p15
+          - 720p24
+          - 1080p30
+          - 1080p60
+          - 1440p30
+          - 4k24
+        default: 720p24
+        required: true
+      samples:
+        description: 'Cycles CPU samples'
+        type: choice
+        options: ['8', '16', '32']
+        default: '8'
+        required: true
+      seconds:
+        description: 'Target segment length in seconds'
+        type: choice
+        options: ['10', '30', '100']
+        default: '10'
+        required: true
+      start_second:
+        description: 'Timeline start in seconds'
+        type: choice
+        options: ['0', '60', '120', '150']
+        default: '0'
+        required: true
+      mode:
+        description: 'Probe = first 16 frames only; Render = full segment if within budget'
+        type: choice
+        options: ['probe', 'render']
+        default: 'probe'
+        required: true
+      allow_heavy:
+        description: 'Explicitly allow more than 900 output frames (subject to guards)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: robot-seed-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Benchmark ${{ inputs.preset }} / ${{ inputs.seconds }}s / ${{ inputs.mode }}
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender ffmpeg
+      - name: Display runner resources
+        run: |
+          echo "CPU:"; nproc; lscpu | grep -E 'CPU\(s\)|Model name' | head -6
+          echo "RAM:"; free -h
+          echo "Disk:"; df -h .
+          blender --background --python-expr 'import bpy; print("BLENDER VERSION:", bpy.app.version_string)'
+      - name: Benchmark with RAM/disk/time guards
+        id: bench
+        shell: bash
+        env:
+          BENCH_PRESET: ${{ inputs.preset }}
+          BENCH_SAMPLES: ${{ inputs.samples }}
+          BENCH_SECONDS: ${{ inputs.seconds }}
+          BENCH_START: ${{ inputs.start_second }}
+          BENCH_MODE: ${{ inputs.mode }}
+          BENCH_HEAVY: ${{ inputs.allow_heavy }}
+        run: |
+          set -euo pipefail
+          args=(
+            --preset "$BENCH_PRESET"
+            --samples "$BENCH_SAMPLES"
+            --seconds "$BENCH_SECONDS"
+            --start-second "$BENCH_START"
+            --mode "$BENCH_MODE"
+            --threads 4
+            --budget-minutes 55
+            --max-rss-gib 12.5
+            --min-disk-free-gib 2.5
+          )
+          if [[ "$BENCH_HEAVY" == "true" ]]; then
+            args+=(--allow-heavy)
+          fi
+          python3 scripts/benchmark.py "${args[@]}"
+      - name: Upload metrics, logs and verified MP4
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: blender-benchmark-${{ inputs.preset }}-${{ inputs.seconds }}s-${{ github.run_number }}
+          path: |
+            outputs/benchmark/**/metrics.json
+            outputs/benchmark/**/report.md
+            outputs/benchmark/**/probe.log
+            outputs/benchmark/**/full.log
+            outputs/benchmark/**/segment.mp4
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Print benchmark summary
+        if: ${{ always() }}
+        run: |
+          find outputs/benchmark -name report.md -print -exec cat {} \; || true
