@@ -1,0 +1,12 @@
+*.mp4
+*.mov
+*.blend1
+*.blend2
+frames/
+outputs/
+preview/
+cache/
+__pycache__/
+*.pyc
+.env
+node_modules/

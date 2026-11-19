@@ -1,0 +1,11 @@
+# Robot Seed — Codex agent notes
+- Objective: create a 180-second 3D low-poly film with Blender Python.
+- Global timeline: 15 FPS, 854x480, 18 independent 10-second chunks.
+- Keep the original story: lonely robot finds seed, waters it, flower blooms.
+- Don't commit rendered frames/videos or binary media to git.
+- Run a 2-second benchmark before any full chunk.
+- Use CPU-friendly geometry, simple shaders, no external assets, no secrets.
+- Rendering task: `python3 scripts/pipeline.py run --chunk 1 --test-frames 30`.
+- Never claim cloud availability or GPU support before testing.
+- Preserve frame continuity by using global frame numbers.
+- Store completed outputs via workflow artifacts; optional Releases publication.

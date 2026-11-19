@@ -1,0 +1,12 @@
+{
+  "title": "Robot nhỏ và hạt mầm cuối cùng",
+  "duration_seconds": 180,
+  "fps": 15,
+  "width": 854,
+  "height": 480,
+  "chunk_seconds": 10,
+  "render_engine": "CYCLES",
+  "samples": 8,
+  "crf": 24,
+  "release_tag": "robot-seed-v0.1"
+}

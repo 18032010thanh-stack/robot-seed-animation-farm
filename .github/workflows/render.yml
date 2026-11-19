@@ -1,0 +1,48 @@
+name: Render Blender chunks (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      chunks:
+        description: 'JSON chunk list, e.g. [1] or [1,2]'
+        required: true
+        default: '[1]'
+      publish:
+        description: 'Publish to public GitHub Release'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+jobs:
+  render:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        chunk: ${{ fromJSON(inputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender ffmpeg
+      - name: CPU benchmark and render
+        run: python3 scripts/pipeline.py run --chunk ${{ matrix.chunk }} --threads 2
+      - name: Upload temporary result
+        uses: actions/upload-artifact@v4
+        with:
+          name: part-${{ matrix.chunk }}
+          path: outputs/part_*.mp4
+          retention-days: 2
+          if-no-files-found: error
+      - name: Publish release asset
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view robot-seed-v0.1 >/dev/null 2>&1 || gh release create robot-seed-v0.1 --title 'Robot Seed v0.1' --notes 'Blender chunks' || gh release view robot-seed-v0.1
+          f="outputs/$(printf 'part_%03d.mp4' '${{ matrix.chunk }}')"
+          gh release upload robot-seed-v0.1 "$f" --clobber
