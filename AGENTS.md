@@ -1,4 +1,5 @@
 # Robot Seed — Codex agent notes
+- For Blender animation, render orchestration, GitHub Actions or FFmpeg tasks, load and follow `.agents/skills/blender-animation/SKILL.md` (repo-local Codex skill). Start with a 2-second benchmark before any large run.
 - Objective: create a 180-second 3D low-poly film with Blender Python.
 - Global timeline: 15 FPS, 854x480, 18 independent 10-second chunks.
 - Keep the original story: lonely robot finds seed, waters it, flower blooms.
