@@ -1,0 +1,64 @@
+name: In This Town 155s Vietsub
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: town155-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        chunk: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install rendering dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-noto-core python3-venv
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check numpy pillow
+      - name: Render 10-second segment
+        run: .venv/bin/python projects/in-this-town-155/scripts/render_chunks.py render --chunk ${{ matrix.chunk }}
+      - name: Save segment
+        uses: actions/upload-artifact@v6
+        with:
+          name: town155-part-${{ matrix.chunk }}
+          path: projects/in-this-town-155/output/part_*.mp4
+          retention-days: 7
+          if-no-files-found: error
+
+  assemble:
+    needs: [render]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install sound and merge dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-noto-core espeak-ng python3-venv
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check numpy pillow
+      - name: Download all segments
+        uses: actions/download-artifact@v7
+        with:
+          pattern: town155-part-*
+          merge-multiple: true
+          path: projects/in-this-town-155/output/
+      - name: Verify and assemble exactly 155 seconds
+        run: .venv/bin/python projects/in-this-town-155/scripts/render_chunks.py assemble
+      - name: Save final video and subtitle
+        uses: actions/upload-artifact@v6
+        with:
+          name: in-this-town-155s-vietsub
+          path: |
+            projects/in-this-town-155/output/in_this_town_155s_vietsub.mp4
+            projects/in-this-town-155/output/vietsub.srt
+          retention-days: 7
+          if-no-files-found: error
