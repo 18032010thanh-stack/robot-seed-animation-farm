@@ -36,3 +36,13 @@ Vào GitHub → **Actions** → **Render Blender chunks (manual)** → **Run wor
 Repository là Public. GitHub Actions trên repo public có thể chạy runner tiêu chuẩn không thu phí theo chính sách GitHub hiện hành; không đồng nghĩa không có giới hạn. Không lưu token trong source; workflow dùng `GITHUB_TOKEN`.
 
 Bộ ZIP mở rộng từ phiên ChatGPT còn có storyboard, animatic và các script hỗ trợ bổ sung. Repo này chứa pipeline dựng/render cốt lõi, để chạy thử trước.
+
+
+## 🎬 Render toàn bộ phim chỉ với một workflow
+
+1. Vào **Actions → Render complete 3-minute Blender film → Run workflow**.
+2. Để `publish = false` nếu chỉ muốn tải riêng bản video.
+3. Workflow dựng 18 đoạn song song tối đa 3 job, kiểm tra từng MP4, ghép tự động thành `final_film.mp4`.
+4. Khi thành công, tải artifact `robot-seed-180-seconds` (lưu 7 ngày).
+
+Lưu ý: workflow này **sẽ render lại cả đoạn 1** để 18 đoạn đều nằm trong cùng một run. Bạn đã có bản thử `part_001.mp4` từ run #1. GitHub Actions là dịch vụ của GitHub, không trừ tài nguyên Codex Plus. Nếu chọn publish=true, video cuối được đưa lên GitHub Releases ở repository công khai.
