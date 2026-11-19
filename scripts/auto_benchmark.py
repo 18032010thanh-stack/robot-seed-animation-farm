@@ -22,6 +22,7 @@ OUT = ROOT / "outputs" / "auto-benchmark"
 # A 100-second target is an ESTIMATE, not a blind 100-second render.
 # Time 150 seconds exercises flower animation where scene complexity differs.
 PROFILES = [
+    ("480p15",  8, 100, 0,   "original film baseline, potential 100s full render"),
     ("720p24",  8, 100, 0,   "720p baseline, 100s extrapolation"),
     ("1080p30", 8, 100, 0,   "1080p at 30 FPS, 100s extrapolation"),
     ("1080p60", 8, 100, 0,   "1080p at 60 FPS, 100s extrapolation"),
@@ -53,7 +54,7 @@ def write_report(entries, started, budget):
         f"- Elapsed: {summary['wall_elapsed_seconds']} seconds",
         f"- Time budget: {int(budget/60)} minutes",
         "",
-        "| Profile | Target | Samples | Tested frames | Probe sec | Est. 100s min, ×1.5 | RAM peak GiB | Result |",
+        "| Profile | Target | Samples | Tested frames | Probe sec | Est. target min, ×1.5 | RAM peak GiB | Result |",
         "|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     for e in entries:
