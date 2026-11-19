@@ -1,0 +1,56 @@
+name: Benchmark 720p then render 100 seconds
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/render-720p-100s.yml
+permissions:
+  contents: read
+concurrency:
+  group: robot-seed-720p-benchmark
+  cancel-in-progress: false
+jobs:
+  render:
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender ffmpeg
+      - name: Configure 720p and 100-second chunk
+        run: |
+          python3 -c 'import json; p="project.json"; c=json.load(open(p)); c.update(width=1280,height=720,chunk_seconds=100); open(p,"w").write(json.dumps(c,ensure_ascii=False,indent=2))'
+          lscpu
+          free -h
+          df -h .
+      - name: Benchmark 2 seconds
+        run: |
+          /usr/bin/time -v -o benchmark-time.txt python3 scripts/pipeline.py run --chunk 1 --test-frames 30 --threads 2
+          cat benchmark-time.txt
+      - name: Upload 2-second benchmark
+        uses: actions/upload-artifact@v6
+        with:
+          name: robot-seed-720p-2s-benchmark
+          path: |
+            outputs/test/part_001.mp4
+            benchmark-time.txt
+          retention-days: 7
+          if-no-files-found: error
+      - name: Render 100 seconds with time and memory measurement
+        timeout-minutes: 90
+        run: |
+          /usr/bin/time -v -o render-time.txt python3 scripts/pipeline.py run --chunk 1 --threads 2
+          cat render-time.txt
+          du -sh outputs/frames outputs/part_001.mp4
+      - name: Upload 100-second clip and measurement
+        uses: actions/upload-artifact@v6
+        with:
+          name: robot-seed-720p-100s
+          path: |
+            outputs/part_001.mp4
+            render-time.txt
+          retention-days: 7
+          if-no-files-found: error
