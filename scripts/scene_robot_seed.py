@@ -28,15 +28,24 @@ def shape(kind, name, loc, scale, mat, parent=None, segments=12):
     if parent is not None: o.parent=parent
     return o
 
+REFERENCE_FPS = 15
+TIMELINE_SCALE = 1.0
+
+def scaled_frame(f):
+    # The storyboard uses 15-fps key positions. Keep the SAME seconds at any output FPS.
+    return 1.0 + (f - 1.0) * TIMELINE_SCALE
+
 def key(o,path,f,val):
     setattr(o,path,val)
-    o.keyframe_insert(data_path=path,frame=f)
+    o.keyframe_insert(data_path=path,frame=scaled_frame(f))
 
 def key_component(o,path,index,f,val):
     getattr(o,path)[index]=val
-    o.keyframe_insert(data_path=path,index=index,frame=f)
+    o.keyframe_insert(data_path=path,index=index,frame=scaled_frame(f))
 
 def build(cfg):
+    global TIMELINE_SCALE
+    TIMELINE_SCALE = float(cfg['fps']) / REFERENCE_FPS
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     scene=bpy.context.scene
