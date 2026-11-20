@@ -5,3 +5,5 @@
 - Avoid duplicate GitHub Actions runs; benchmark one 10-second chunk before a full production.
 - Do not claim this 2D project is a Blender 3D render.
 - Do not commit output/ or media binaries.
+
+- For 3D upgrade, use scripts/scene_town3d.py and scripts/render_town3d.py. Run a 30-frame Blender benchmark before the 16-chunk full render. Do not confuse 2D outputs with 3D results.
