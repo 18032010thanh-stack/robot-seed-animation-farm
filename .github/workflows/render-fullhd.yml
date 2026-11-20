@@ -1,0 +1,122 @@
+name: Render Full HD 1080p30 complete 3-minute film
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/START_FULLHD_2026-11-20.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fullhd-1080p30-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate Full HD film profile
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate profile, chunk count and timeline code
+        run: |
+          python3 -m py_compile scripts/pipeline.py scripts/scene_robot_seed.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('profiles/fullhd-1080p30.json').read_text(encoding='utf8'))
+          assert (c['width'],c['height'],c['fps'],c['duration_seconds'])==(1920,1080,30,180)
+          assert (c['samples'],c['chunk_seconds'])==(8,10)
+          assert c['duration_seconds']*c['fps']==5400
+          assert (c['duration_seconds'] + c['chunk_seconds'] - 1)//c['chunk_seconds']==18
+          source=Path('scripts/scene_robot_seed.py').read_text(encoding='utf8')
+          assert "TIMELINE_SCALE = float(cfg['fps']) / REFERENCE_FPS" in source
+          print('READY: 1920x1080, 30 FPS, 180 s, 5400 frames, 18 chunks, Cycles 8 samples')
+          PY
+
+  render:
+    name: Full HD chunk ${{ matrix.chunk }} of 18
+    needs: [preflight]
+    if: ${{ needs.preflight.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        chunk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender ffmpeg
+      - name: Activate Full HD config in this disposable runner only
+        run: |
+          cp profiles/fullhd-1080p30.json project.json
+          python3 scripts/pipeline.py doctor
+      - name: Render and verify 300 frames in one 10-second segment
+        shell: bash
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          python3 scripts/pipeline.py run --chunk ${{ matrix.chunk }} --threads 4
+          end=$(date +%s)
+          echo "chunk=${{ matrix.chunk }} elapsed_seconds=$((end-start)) resolution=1920x1080 fps=30 samples=8 frames=300" > outputs/render_seconds_chunk_${{ matrix.chunk }}.txt
+          cat outputs/render_seconds_chunk_${{ matrix.chunk }}.txt
+      - name: Upload verified MP4 and timing
+        uses: actions/upload-artifact@v6
+        with:
+          name: fullhd-part-${{ matrix.chunk }}
+          path: |
+            outputs/part_*.mp4
+            outputs/render_seconds_chunk_*.txt
+          retention-days: 7
+          if-no-files-found: error
+
+  assemble:
+    name: Assemble and verify entire 180-second Full HD film
+    needs: [preflight, render]
+    if: ${{ needs.preflight.result == 'success' && needs.render.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Download all 18 verified 1080p30 segments
+        uses: actions/download-artifact@v7
+        with:
+          pattern: fullhd-part-*
+          merge-multiple: true
+          path: outputs/
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+      - name: Activate same profile and merge (must contain 5400 frames)
+        run: |
+          cp profiles/fullhd-1080p30.json project.json
+          python3 scripts/pipeline.py merge
+      - name: Generate checksum and video metadata
+        run: |
+          sha256sum outputs/final_film.mp4 > outputs/final_film.sha256
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,avg_frame_rate,nb_frames,duration -of json outputs/final_film.mp4 > outputs/final_film.info.json
+          cat outputs/final_film.info.json
+          echo "### Full HD 1080p30 / 180s complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "Each of 18 clips was validated; final contains 5400 frames." >> "$GITHUB_STEP_SUMMARY"
+          echo 'Video artifact: robot-seed-fullhd-1080p30-180s' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload final Full HD movie
+        uses: actions/upload-artifact@v6
+        with:
+          name: robot-seed-fullhd-1080p30-180s
+          path: |
+            outputs/final_film.mp4
+            outputs/final_film.sha256
+            outputs/final_film.info.json
+            outputs/render_seconds_chunk_*.txt
+          retention-days: 7
+          if-no-files-found: error
