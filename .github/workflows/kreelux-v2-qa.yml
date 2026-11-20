@@ -36,10 +36,10 @@ jobs:
         run: |
           .venv/bin/python -m unittest discover -s projects/kreelux-v2-test/tests -v
           .venv/bin/python projects/kreelux-v2-test/scripts/pipeline.py doctor
-      - name: Generate real Vietnamese TTS and exact word timings
-        run: .venv/bin/python projects/kreelux-v2-test/scripts/prepare_audio.py
       - name: Render 39 genuine 3D EEVEE camera and animation QA stills
         run: .venv/bin/python projects/kreelux-v2-test/scripts/pipeline.py qa
+      - name: Generate real Vietnamese TTS and exact word timings
+        run: .venv/bin/python projects/kreelux-v2-test/scripts/prepare_audio.py
       - name: Render 24 real Blender motion frames and H.264 preview
         run: .venv/bin/python projects/kreelux-v2-test/scripts/pipeline.py smoke
       - name: Upload visual contact sheets, actual moving video, narration and timings
