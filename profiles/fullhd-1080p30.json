@@ -1,0 +1,12 @@
+{
+  "title": "Robot nhỏ và hạt mầm cuối cùng — Full HD 1080p30",
+  "duration_seconds": 180,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "chunk_seconds": 10,
+  "render_engine": "CYCLES",
+  "samples": 8,
+  "crf": 24,
+  "release_tag": "robot-seed-fullhd-v0.2"
+}
