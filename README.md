@@ -63,3 +63,21 @@ The workflow defaults to **probe**, is manual-only, one benchmark at a time, `ti
 **Important:** A 100-second segment does not increase overall movie runtime: it changes the size of a single 180-second film chunk. Higher resolution/FPS/samples cost substantially more CPU. For 100s at 1080p30 or 1080p60, use **mode=probe** first and read the estimate before enabling heavy mode. Standard public GitHub-hosted runners are not unlimited computing resources.
 
 See [full benchmark procedure](docs/BENCHMARK.md).
+
+
+## 🎥 Full HD 1080p / 30 FPS / 180 giây — render tự động
+
+[Workflow Full HD](https://github.com/18032010thanh-stack/robot-seed-animation-farm/actions/workflows/render-fullhd.yml).
+
+**Một lần render đầy đủ đã được kích hoạt bằng marker** `docs/START_FULLHD_2026-11-20.md`. Có thể chạy lại thủ công bằng `workflow_dispatch` nếu cần nhưng không nên chạy trùng.
+
+- Hồ sơ riêng: [`profiles/fullhd-1080p30.json`](profiles/fullhd-1080p30.json) (1920×1080, 30 FPS, Cycles 8 samples, CRF 24).
+- Thời lượng 180 giây, chia thành **18 đoạn × 10 giây × 300 frame**; GitHub Actions chạy tối đa 3 job song song, mỗi job dùng 4 luồng CPU.
+- Preflight kiểm tra cấu hình và đảm bảo các keyframe gốc 15 FPS đã được quy đổi sang 30 FPS, giữ nguyên tốc độ chuyển động.
+- Mỗi MP4 được FFprobe kiểm tra codec, kích thước, FPS và số frame; bước cuối chỉ ghép nếu cả 18 job thành công.
+- Video cuối `outputs/final_film.mp4` chứa 5.400 frame, lưu trong artifact `robot-seed-fullhd-1080p30-180s` (7 ngày), cùng SHA-256, thông tin video và thời gian từng đoạn.
+- Workflow **không ghi đè `project.json` của repo**: mỗi runner tạm thời copy hồ sơ Full HD.
+- Không phát hành video lên GitHub Releases hoặc sử dụng runner/GPU trả phí. Chỉ dùng runner tiêu chuẩn của GitHub trên repo public.
+- Thời lượng render thật phụ thuộc cảnh và hàng đợi runner; một đoạn đầu phim 1080p30 từng render thành công trong benchmark tự động, nhưng các đoạn khác vẫn cần hoàn tất để chứng minh toàn phim thành công.
+
+**Chỉ coi phim hoàn tất khi job `Assemble and verify entire 180-second Full HD film` báo success và artifact video cuối đã xuất hiện.**
