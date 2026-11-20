@@ -245,8 +245,11 @@ def create(index,quality):
     else:
         scene.render.engine="CYCLES"
         scene.cycles.device="CPU"
-        scene.cycles.samples=6 if quality=="cycles" else 3
-        if hasattr(scene.cycles,"use_denoising"):scene.cycles.use_denoising=True
+        scene.cycles.samples=12 if quality=="cycles" else 8
+        # Render denoising lives on the ViewLayer's Cycles settings in Blender 5.
+        for layer in scene.view_layers:
+            if hasattr(layer,"cycles") and hasattr(layer.cycles,"use_denoising"):
+                layer.cycles.use_denoising=True
     if quality!="workbench":
         bpy.ops.object.light_add(type="AREA",location=(-3,-5,9))
         bpy.context.object.data.energy=900 if not dawn else 1550
