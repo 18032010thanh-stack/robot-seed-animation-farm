@@ -1,0 +1,107 @@
+name: In This Town — 3D Blender 155s Vietsub
+on:
+  workflow_dispatch:
+    inputs:
+      quality:
+        description: 'Rendering mode (fast: 3-sample Cycles CPU)'
+        required: true
+        type: choice
+        options: [fast, cycles, workbench]
+        default: fast
+  push:
+    paths:
+      - '.github/workflows/in-this-town-3d.yml'
+permissions:
+  contents: read
+concurrency:
+  group: town3d-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Lint code and render a 2-second Blender smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender ffmpeg
+      - name: Validate Python sources and story
+        run: |
+          python3 -m py_compile projects/in-this-town-155/scripts/scene_town3d.py
+          python3 -m py_compile projects/in-this-town-155/scripts/render_town3d.py
+          python3 projects/in-this-town-155/scripts/render_town3d.py doctor
+      - name: Render 30 frames on CPU using Blender
+        run: |
+          python3 projects/in-this-town-155/scripts/render_town3d.py render --chunk 1 --test-frames 30 --quality fast --threads 2
+      - name: Save actual Blender smoke MP4
+        uses: actions/upload-artifact@v6
+        with:
+          name: town3d-smoke-2seconds
+          path: projects/in-this-town-155/output3d/test/part_001.mp4
+          retention-days: 7
+          if-no-files-found: error
+
+  render:
+    name: 3D scene chunk ${{ matrix.chunk }}/16
+    needs: [preflight]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        chunk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender ffmpeg
+      - name: Render and verify segment
+        env:
+          QUALITY: ${{ github.event_name == 'workflow_dispatch' && inputs.quality || 'fast' }}
+        run: |
+          python3 projects/in-this-town-155/scripts/render_town3d.py render --chunk ${{ matrix.chunk }} --quality "$QUALITY" --threads 2
+      - name: Upload segment MP4
+        uses: actions/upload-artifact@v6
+        with:
+          name: town3d-part-${{ matrix.chunk }}
+          path: projects/in-this-town-155/output3d/part_*.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+  assemble:
+    name: Add Vietnamese subtitles, narration and verify 155-second film
+    needs: [render]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install FFmpeg, eSpeak and Vietnamese fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg espeak-ng fonts-noto-core python3-venv
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check numpy pillow
+      - name: Download all validated MP4 chunks
+        uses: actions/download-artifact@v7
+        with:
+          pattern: town3d-part-*
+          merge-multiple: true
+          path: projects/in-this-town-155/output3d/
+      - name: Merge, burn subtitles, add narration and validate
+        run: .venv/bin/python projects/in-this-town-155/scripts/render_town3d.py assemble
+      - name: Upload 3D film and separate Vietnamese subtitle
+        uses: actions/upload-artifact@v6
+        with:
+          name: in-this-town-155s-3d-vietsub
+          path: |
+            projects/in-this-town-155/output3d/in_this_town_155s_3d_vietsub.mp4
+            projects/in-this-town-155/output3d/vietsub.srt
+          retention-days: 7
+          if-no-files-found: error
